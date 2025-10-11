@@ -1,0 +1,16 @@
+{
+  "map": {
+    "student": {
+      "rajesh": "20250001",
+      "devansh": "20250002",
+      "super": "20250003"
+    },
+    "teacher": {},
+    "admin": {}
+  },
+  "counters": {
+    "student": 3,
+    "teacher": 0,
+    "admin": 0
+  }
+}
