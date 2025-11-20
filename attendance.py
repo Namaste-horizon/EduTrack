@@ -41,7 +41,17 @@ def save_attendance_master(data):
 def can_teacher_access_section(teachername, section):
     teacher_sections = load_json_file(TEACHER_SECTIONS_FILE)
     teacher_sections_list = teacher_sections.get(teachername, [])
-    return section.upper() in [s.upper() for s in teacher_sections_list]
+    if section.upper() in [s.upper() for s in teacher_sections_list]:
+        return True
+    # allow admin users full access
+    try:
+        rn = load_json_file('rollnumbers.json')
+        admin_map = rn.get('map', {}).get('admin', {})
+        if teachername in admin_map:
+            return True
+    except Exception:
+        pass
+    return False
 
 def get_student_section(roll_number):
     sections = load_json_file(SECTIONS_FILE)
@@ -171,7 +181,7 @@ def view_attendance(teachername=None, student_roll=None):
         plt.tight_layout()
         plt.show()
 
-def mark_attendance(teachername, student_roll, subject_code, is_present=True):
+def mark_attendance(teachername, student_roll, subject_code, is_present=True, force=False):
     try:
         student_section = get_student_section(student_roll)
         if student_section == "Not assigned":

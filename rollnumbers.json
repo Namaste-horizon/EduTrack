@@ -57,8 +57,7 @@
       "chirag kumar": "20250059",
       "ayush jain": "20250060",
       "jay kapoor": "20250061",
-      "madhav singh": "20250062",
-      "alice": "20250063"
+      "madhav singh": "20250062"
     },
     "teacher": {
       "utkarsh pant": "T0001",
@@ -82,7 +81,7 @@
     }
   },
   "counters": {
-    "student": 63,
+    "student": 62,
     "teacher": 13,
     "admin": 3
   }

@@ -1,3 +1,57 @@
+
+
+# Helper to render student dashboard with assigned section and attendance
+def _render_dashboard(parent_frame, current_roll, proj_dir=None):
+    import json, os
+    import tkinter as tk
+    from tkinter import ttk
+    if proj_dir is None:
+        proj_dir = os.path.abspath(os.path.dirname(__file__))
+
+    def _load_json(name):
+        p = os.path.join(proj_dir, name)
+        try:
+            with open(p, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            return None
+
+    studentsubj = _load_json('studentsubjects.json') or {}
+    attendance_master = _load_json('attendance_master.json') or {}
+
+    ss_entry = studentsubj.get(current_roll)
+    section_name = ss_entry.get('section') if ss_entry else 'Not assigned'
+
+    sec_lbl = ttk.Label(parent_frame, text=f"Section: {section_name}", font=('Arial', 12, 'bold'))
+    sec_lbl.pack(anchor='w', padx=8, pady=6)
+
+    cols = ('subject', 'working_days', 'present_days', 'percentage', 'last_updated')
+    tree = ttk.Treeview(parent_frame, columns=cols, show='headings', height=8)
+    for c in cols:
+        tree.heading(c, text=c.replace('_',' ').title())
+        tree.column(c, width=120, anchor='center')
+    tree.pack(fill='x', padx=8, pady=6)
+
+    student_att = attendance_master.get('attendance_records', {}).get(current_roll, {})
+    subjects = student_att.get('subjects', {}) if student_att else {}
+
+    if not subjects:
+        fallback = ss_entry.get('subjects') if ss_entry else []
+        for name in fallback:
+            tree.insert('', 'end', values=(name, 0, 0, '0.0', 'N/A'))
+    else:
+        for subj_code, info in subjects.items():
+            name = info.get('subject_name') or subj_code
+            wd = info.get('total_working_days', 0)
+            pd = info.get('total_present_days', 0)
+            pct = info.get('attendance_percentage', 0.0)
+            lu = info.get('last_updated', '')
+            tree.insert('', 'end', values=(name, wd, pd, f"{pct:.1f}", lu))
+
+    return sec_lbl, tree
+
+
+
 import os
 import sys
 import threading
@@ -44,7 +98,7 @@ except Exception as tkerr:
     tkimporterror = tkerr
 
 def projectroot():
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    return os.path.abspath(os.path.dirname(__file__))
 
 def path(name: str):
     return os.path.join(projectroot(), name)

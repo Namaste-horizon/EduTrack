@@ -303,3 +303,41 @@ def viewMySections(teacher_name):
 
 def viewSectionAssignments(section_name):
     return view_section_assignments(section_name)
+
+
+def assign_sections_to_teacher(teacher_name, sections_list):
+    """Assign a list of sections to a teacher (programmatic API for GUI).
+    teacher_name: string
+    sections_list: list of section names (e.g., ['A1','B1'])
+    Returns True on success, False on failure.
+    """
+    try:
+        tmap = load_json(teacher_sections_file, {})
+        if not isinstance(tmap, dict):
+            tmap = {}
+        tmap[teacher_name] = sorted(list(dict.fromkeys(sections_list)))
+        save_json(teacher_sections_file, tmap)
+        return True
+    except Exception as e:
+        print('Error assigning sections to teacher:', e)
+        return False
+
+
+def create_section_admin(section_name):
+    """Programmatic API to create a section (admin use)."""
+    try:
+        sections = load_json(sections_file, {})
+        if section_name in sections:
+            return False
+        # add new section with empty list or default
+        sections[section_name] = []
+        save_json(sections_file, sections)
+        # Also update sectionlist.json
+        sl = load_json(section_list_file, [])
+        if section_name not in sl:
+            sl.append(section_name)
+            save_json(section_list_file, sl)
+        return True
+    except Exception as e:
+        print('Error creating section:', e)
+        return False
