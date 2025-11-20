@@ -1,9 +1,6 @@
 import os
 import sys
-try:
-    from . import login
-except Exception:
-    import login
+import login
 
 APP_TITLE = "EduTrack"
 
