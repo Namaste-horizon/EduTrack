@@ -350,21 +350,67 @@ class EduTrackApp:
             descLabel.pack(pady=(4, 16))
         quickFrame = self.view.frame(container, panelBackgroundColor, border=True)
         quickFrame.pack(fill="x", pady=18)
-        quickTitle = self.view.label(quickFrame, text="Quick Actions", fontSpec=bodyFontSpec, background=panelBackgroundColor, textColor=primaryDeepColor, anchor="w")
+        quickTitle = self.view.label(quickFrame, text="Admin Menu", fontSpec=bodyFontSpec, background=panelBackgroundColor, textColor=primaryDeepColor, anchor="w")
         quickTitle.pack(fill="x", padx=18, pady=(16, 8))
         quickRow = self.view.frame(quickFrame, panelBackgroundColor)
         quickRow.pack(fill="x", padx=18, pady=(0, 18))
+        def openStudentInfo():
+            top = self.view.toplevel(self.root, "View Student Info", "420x240")
+            frame = self.view.frame(top, panelBackgroundColor)
+            frame.pack(fill="both", expand=True, padx=18, pady=18)
+            nameLbl = self.view.label(frame, text="Student username", fontSpec=bodyFontSpec, background=panelBackgroundColor, anchor="w")
+            nameLbl.pack(fill="x")
+            nameEnt = self.view.entry(frame)
+            nameEnt.pack(fill="x", pady=8)
+            def go():
+                studentname = nameEnt.get().strip()
+                if not studentname:
+                    messagebox.showerror("Input", "Enter username.")
+                    return
+                import subject, section, exam_date
+                rollVal = subject.getRollNumber(studentname, "student")
+                secVal = section.getSectionForRoll(rollVal)
+                infoTxt = self.view.label(frame, text=f"Roll: {rollVal}\nSection: {secVal}", fontSpec=bodyFontSpec, background=panelBackgroundColor, anchor="w")
+                infoTxt.pack(fill="x", pady=8)
+                if secVal != "Not assigned":
+                    exam_date.viewSectionExamDates(secVal)
+            okBtn = self.view.button(frame, text="Show", command=go, width=16)
+            okBtn.pack(pady=8)
+        def openAnyDashboard():
+            top = self.view.toplevel(self.root, "Open Student Dashboard", "420x240")
+            frame = self.view.frame(top, panelBackgroundColor)
+            frame.pack(fill="both", expand=True, padx=18, pady=18)
+            nameLbl = self.view.label(frame, text="Student username", fontSpec=bodyFontSpec, background=panelBackgroundColor, anchor="w")
+            nameLbl.pack(fill="x")
+            nameEnt = self.view.entry(frame)
+            nameEnt.pack(fill="x", pady=8)
+            def go():
+                studentname = nameEnt.get().strip()
+                if not studentname:
+                    messagebox.showerror("Input", "Enter username.")
+                    return
+                self.handleSidebarSelection("Dashboard", self.showWelcomePanel)
+                showDashboard("student", studentname)
+            okBtn = self.view.button(frame, text="Open", command=go, width=16)
+            okBtn.pack(pady=8)
         actions = [
-            ("Manage Subjects", "Subjects", self.showSubjectsPanel),
-            ("Create Sections", "Sections", self.showSectionsPanel),
-            ("Assign Sections", "Sections", self.showSectionsPanel),
-            ("Plan Exams", "Exams", self.showExamsPanel),
-            ("Teachers Map", "Teachers", self.showTeachersPanel),
-            ("Topics Coverage", "Topics", self.showTopicsPanel),
+            ("Add subject", "Subjects", self.showSubjectsPanel),
+            ("List subjects", "Subjects", self.showSubjectsPanel),
+            ("Create section", "Sections", self.showSectionsPanel),
+            ("List sections", "Sections", self.showSectionsPanel),
+            ("Assign section to student (choose from list)", "Sections", self.showSectionsPanel),
+            ("Assign sections to teacher", "Teachers", self.showTeachersPanel),
+            ("Set/Update exam dates", "Exams", self.showExamsPanel),
+            ("View all exam dates", "Exams", self.showExamsPanel),
+            ("View section assignments", "Sections", self.showSectionsPanel),
+            ("View student info", "Dashboard", openStudentInfo),
+            ("View any student's dashboard", "Dashboard", openAnyDashboard),
         ]
-        for text, sidebarKey, handler in actions:
-            btn = self.view.button(quickRow, text=text, command=lambda n=sidebarKey, h=handler: self.handleSidebarSelection(n, h), bgColor="#E6ECF8", hoverColor="#d4e1ff", width=18)
-            btn.pack(side="left", expand=True, fill="x", padx=6)
+        for text, keyVal, handler in actions:
+            btn = self.view.button(quickRow, text=text, command=lambda k=keyVal, h=handler: (self.handleSidebarSelection(k, h), None)[1], bgColor="#E6ECF8", hoverColor="#d4e1ff", width=24)
+            btn.pack(fill="x", padx=6, pady=6)
+        self.setActiveSidebar("Dashboard")
+
     
     def attemptLogin(self):
         self.refreshUsers()
@@ -384,79 +430,26 @@ class EduTrackApp:
         self.activeRole = user.role
         self.setAppRef()
         self.showDashboard()
-
-
-
-        def showRoleTeacher(self, username):
-            container = self.prepareContent("Dashboard")
-            mySections = []
-            for entry in self.teacherData:
-                if entry.get("teacher", "") == username:
-                    mySections = entry.get("sections", [])
-                    break
-            studentCount = 0
-            secSet = set([s for s in mySections])
-            for item in self.sectionData:
-                sec = item.get("section", "")
-                if sec in secSet:
-                    studentCount += 1
-            statsFrame = self.view.frame(container, "#FFFFFF", border=True)
-            statsFrame.pack(fill="x", padx=0, pady=8)
-            metrics = [
-                ("My Sections", len(mySections), "Assigned classes"),
-                ("Mapped Students", studentCount, "Learners in my classes"),
-                ("Subjects", len(self.subjectData), "Curriculum set"),
-                ("Topics Logged", len(self.topicData), "Coverage entries"),
-            ]
-            for title, value, desc in metrics:
-                card = self.view.frame(statsFrame, "#FFFFFF", border=True)
-                card.pack(side="left", expand=True, fill="both", padx=8, pady=8)
-                label = self.view.label(card, text=str(value), fontSpec=headingFontSpec, background="#FFFFFF", textColor=primaryDeepColor)
-                label.pack(pady=(18, 4))
-                caption = self.view.label(card, text=title.upper(), fontSpec=smallFontSpec, background="#FFFFFF", textColor=neutralGrayBlueColor)
-                caption.pack()
-                descLabel = self.view.label(card, text=desc, fontSpec=smallFontSpec, background="#FFFFFF", textColor=primaryDeepColor)
-                descLabel.pack(pady=(4, 16))
-            quickFrame = self.view.frame(container, panelBackgroundColor, border=True)
-            quickFrame.pack(fill="x", pady=18)
-            quickTitle = self.view.label(quickFrame, text="Quick Actions", fontSpec=bodyFontSpec, background=panelBackgroundColor, textColor=primaryDeepColor, anchor="w")
-            quickTitle.pack(fill="x", padx=18, pady=(16, 8))
-            quickRow = self.view.frame(quickFrame, panelBackgroundColor)
-            quickRow.pack(fill="x", padx=18, pady=(0, 18))
-            def openTeacherAssignments():
-                import assignments
-                assignments.view_assignments(username)
-                messagebox.showinfo("Assignments", "Assignment list printed in terminal.")
-            actions = [
-                ("My Sections", "Teachers", self.showTeachersPanel),
-                ("Mark Attendance", "Attendance", self.showAttendancePanel),
-                ("Attendance Chart", "Attendance", self.showAttendancePanel),
-                ("Add Topic", "Topics", self.showTopicsPanel),
-                ("View Topics", "Topics", self.showTopicsPanel),
-                ("View Assignments", "Dashboard", openTeacherAssignments),
-            ]
-            for text, sidebarKey, handler in actions:
-                btn = self.view.button(quickRow, text=text, command=lambda n=sidebarKey, h=handler: (self.handleSidebarSelection(n, h), None)[1], bgColor="#E6ECF8", hoverColor="#d4e1ff", width=18)
-                btn.pack(side="left", expand=True, fill="x", padx=6)
-            self.setActiveSidebar("Dashboard")
-    def showRoleStudent(self, username):
+        showDashboard(self.activeRole, self.activeUser)
+        
+    def showRoleTeacher(self, username):
         container = self.prepareContent("Dashboard")
-        try:
-            import subject, section
-            roll = subject.getRollNumber(username, "student")
-            sec = section.getSectionForRoll(roll)
-        except Exception:
-            roll = username
-            sec = "Not assigned"
-        record = self.attendanceData.get("attendance_records", {}).get(roll, {})
-        subjectsCount = len(record.get("subjects", {}))
+        mySections = []
+        for entry in self.teacherData:
+            if entry.get("teacher", "") == username:
+                mySections = entry.get("sections", [])
+                break
+        studentCount = 0
+        secSet = set([s for s in mySections])
+        for item in self.sectionData:
+            secVal = item.get("section", "")
+            if secVal in secSet:
+                studentCount += 1
         statsFrame = self.view.frame(container, "#FFFFFF", border=True)
         statsFrame.pack(fill="x", padx=0, pady=8)
         metrics = [
-            ("Roll", roll, "University roll number"),
-            ("Section", sec, "Current homeroom"),
-            ("My Subjects", subjectsCount, "Mapped courses"),
-            ("Topics Logged", len(self.topicData), "Coverage entries"),
+            ("My Sections", len(mySections), "Assigned classes"),
+            ("Mapped Students", studentCount, "Learners in my classes"),
         ]
         for title, value, desc in metrics:
             card = self.view.frame(statsFrame, "#FFFFFF", border=True)
@@ -469,38 +462,27 @@ class EduTrackApp:
             descLabel.pack(pady=(4, 16))
         quickFrame = self.view.frame(container, panelBackgroundColor, border=True)
         quickFrame.pack(fill="x", pady=18)
-        quickTitle = self.view.label(quickFrame, text="Quick Actions", fontSpec=bodyFontSpec, background=panelBackgroundColor, textColor=primaryDeepColor, anchor="w")
+        quickTitle = self.view.label(quickFrame, text="Teacher Menu", fontSpec=bodyFontSpec, background=panelBackgroundColor, textColor=primaryDeepColor, anchor="w")
         quickTitle.pack(fill="x", padx=18, pady=(16, 8))
         quickRow = self.view.frame(quickFrame, panelBackgroundColor)
         quickRow.pack(fill="x", padx=18, pady=(0, 18))
-        def openStudentSummary():
-            data = self.attendanceData.get("attendance_records", {}).get(roll)
-            if not data:
-                messagebox.showinfo("Attendance", "No attendance data found.")
-                return
-            top = self.view.toplevel(self.root, "Attendance Summary", "520x380")
-            frame = self.view.frame(top, panelBackgroundColor)
-            frame.pack(fill="both", expand=True, padx=18, pady=18)
-            for code, details in data.get("subjects", {}).items():
-                row = self.view.label(frame, text=f"{details.get('subject_name','')} ({code})  •  {details.get('attendance_percentage',0.0)}%", fontSpec=bodyFontSpec, background=panelBackgroundColor, textColor=primaryDeepColor, anchor="w")
-                row.pack(fill="x", pady=4)
-        def submitStudentAssignment():
+        def openAssignments():
             import assignments
-            path = filedialog.askopenfilename(title="Select Assignment PDF", filetypes=[("PDF Files","*.pdf")])
-            if not path:
-                return
-            assignments.submit_assignment(roll, path)
-            messagebox.showinfo("Assignment", "Submitted successfully.")
+            assignments.view_assignments(username)
+            messagebox.showinfo("Assignments", "Assignment list printed in terminal.")
         actions = [
-            ("Exam Schedule", "Exams", self.showExamsPanel),
-            ("View Attendance", "Attendance", self.showAttendancePanel),
-            ("Attendance Summary", "Dashboard", openStudentSummary),
-            ("Topics Covered", "Topics", self.showTopicsPanel),
-            ("Submit Assignment", "Dashboard", submitStudentAssignment),
+            ("View my sections", "Teachers", self.showTeachersPanel),
+            ("Mark present", "Attendance", self.showAttendancePanel),
+            ("Update attendance/ mark absent", "Attendance", self.showAttendancePanel),
+            ("View attendance chart", "Attendance", self.showAttendancePanel),
+            ("Add topic covered", "Topics", self.showTopicsPanel),
+            ("View topics covered", "Topics", self.showTopicsPanel),
+            ("View submitted assignments", "Dashboard", openAssignments),
         ]
-        for text, sidebarKey, handler in actions:
-            btn = self.view.button(quickRow, text=text, command=lambda n=sidebarKey, h=handler: (self.handleSidebarSelection(n, h), None)[1], bgColor="#E6ECF8", hoverColor="#d4e1ff", width=18)
-            btn.pack(side="left", expand=True, fill="x", padx=6)
+        for text, keyVal, handler in actions:
+            btn = self.view.button(quickRow, text=text, command=lambda k=keyVal, h=handler: (self.handleSidebarSelection(k, h), None)[1], bgColor="#E6ECF8", hoverColor="#d4e1ff", width=22)
+            btn.pack(fill="x", padx=6, pady=6)
+        self.setActiveSidebar("Dashboard")
 
     def openCreateAccountDialog(self):
         dialog = self.view.toplevel(self.root, "Create Account", "380x260")
