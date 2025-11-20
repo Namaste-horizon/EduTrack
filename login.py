@@ -3,9 +3,25 @@ import hashlib
 import secrets
 import hmac
 import getpass
-import pwinput
-import subject
-import menu
+
+
+def _get_password(prompt, mask=None):
+    if 'pwinput' in globals() and pwinput:
+        return _get_password(prompt)
+    else:
+        return getpass.getpass(prompt)
+try:
+    import pwinput
+except Exception:
+    pwinput = None
+try:
+    from . import subject
+except Exception:
+    import subject
+try:
+    from . import menu
+except Exception:
+    import menu
 DATAFILE = "userdata.bin"
 
 class User:
@@ -31,7 +47,7 @@ class UserList:
             t = self.head
             while t.next:
                 t = t.next
-            t.next = u
+            t.next = u # type: ignore
 
     def find(self, username):
         t = self.head
@@ -105,7 +121,7 @@ def create_account(users):
     role = input("Are you a teacher, student, or admin? (teacher/student/admin): ").strip().lower()
     if role == "admin":
         admin_pass = "admin@123"
-        entered = pwinput.pwinput("Enter admin creation password: ")
+        entered = _get_password("Enter admin creation password: ")
         if entered != admin_pass:
             print("Incorrect admin creation password.")
             return
@@ -142,15 +158,23 @@ def create_account(users):
     sec_a_salt = make_salt()
     sec_a_hash = make_hash(sec_a, sec_a_salt)
 
-    password = pwinput.pwinput("Enter password: ", mask='*')
+    # ✅ Password length validation
+    while True:
+        password = _get_password("Enter password (must be more than 4 characters): ", mask='*')
+        if len(password) <= 4:
+            print("❌ Password too short! It must be more than 4 characters.")
+        else:
+            break
+
     salt = make_salt()
     pwd_hash = make_hash(password, salt)
 
     users.add(username, role, salt, pwd_hash, sec_q, sec_a_salt, sec_a_hash)
     save_users(users)
-    rno = subject.getRollNumber(username, role)
-    print(f"Your roll no is {rno} ")
-    print("Account created!\n")
+    rno = subject.get_roll_number(username, role)
+    print(f"Your roll no is {rno}")
+    print("✅ Account created successfully!\n")
+
 
 def login(users):
     username = input("Enter username: ").strip()
@@ -158,7 +182,7 @@ def login(users):
     if not user:
         print("No such user.")
         return
-    password = pwinput.pwinput("Enter password: ", mask='*')
+    password = _get_password("Enter password: ", mask='*')
     if not hmac.compare_digest(make_hash(password, user.salt), user.pwd_hash):
         print("Wrong password.")
         return
@@ -176,7 +200,7 @@ def login(users):
                 if make_hash(ans, user.ans_salt) != user.ans_hash:
                     print("Incorrect answer. Cannot change password.")
                     continue
-                newpass = pwinput.pwinput("Enter new password: ", mask='*')
+                newpass = _get_password("Enter new password: ", mask='*')
                 newsalt = make_salt()
                 newhash = make_hash(newpass, newsalt)
                 user.salt = newsalt
@@ -191,7 +215,7 @@ def login(users):
                 elif target_user.role == "admin":
                     print("Cannot change password for another admin.")
                 else:
-                    newpass = pwinput.pwinput("Enter new password for user: ", mask='*')
+                    newpass = _get_password("Enter new password for user: ", mask='*')
                     newsalt = make_salt()
                     newhash = make_hash(newpass, newsalt)
                     target_user.salt = newsalt
@@ -212,7 +236,7 @@ def login(users):
             print("3. Logout")
             choice = input("Enter choice: ").strip()
             if choice == "1":
-                newpass = pwinput.pwinput("Enter new password: ", mask='*')
+                newpass = _get_password("Enter new password: ", mask='*')
                 newsalt = make_salt()
                 newhash = make_hash(newpass, newsalt)
                 user.salt = newsalt
@@ -233,7 +257,7 @@ def login(users):
             print("3. Logout")
             choice = input("Enter choice: ").strip()
             if choice == "1":
-                newpass = pwinput.pwinput("Enter new password: ", mask='*')
+                newpass = _get_password("Enter new password: ", mask='*')
                 newsalt = make_salt()
                 newhash = make_hash(newpass, newsalt)
                 user.salt = newsalt
@@ -257,7 +281,7 @@ def forgot_password(users):
     ans = input("Enter answer: ").strip()
     if make_hash(ans, user.ans_salt) != user.ans_hash:
         return
-    newpass = pwinput.pwinput("Enter new password: ", mask='*')
+    newpass = _get_password("Enter new password: ", mask='*')
     newsalt = make_salt()
     newhash = make_hash(newpass, newsalt)
     user.salt = newsalt

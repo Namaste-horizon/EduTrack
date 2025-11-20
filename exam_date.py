@@ -4,27 +4,60 @@ import os
 
 SUBJECTSFILE = "subjects.json"
 EXAMFILE = "exam_date.json"
-ALLOCATIONFILE = "subject_allocation.json"
+ALLOCATIONFILE = "sectionsubjects.json"
+STUDENTSUBJECTSFILE = "studentsubjects.json"
+
+SUBJECT_NAME_TO_CODE = {
+    "Basic Maths": "TMA101",
+    "English-I": "TEA101",
+    "C Lang": "TCA101",
+    "Electronics": "TEC101",
+    "English-III": "TEA301",
+    "Maths-III": "TMA301",
+    "Computer Networking": "TCN101",
+    "DSA": "TCS101",
+    "Artificial Intelligence": "TAI101",
+    "Operating System": "TOS01",
+    "English-V": "TEA501",
+    "Machine Learning": "TML101",
+    "Algorithm": "TAL101",
+    "OOP": "TOP101",
+    "Database": "TDB101"
+}
 
 def loadSubjects():
     try:
         with open(SUBJECTSFILE, "r") as f:
             data = json.load(f)
-    except:
+    except Exception:
         return []
-    if isinstance(data, dict) and isinstance(data.get("subjects"), list):
+    if isinstance(data, dict) and "subjects" in data:
         return data["subjects"]
     if isinstance(data, list):
         return data
     return []
 
+def loadSubjectAllocation():
+    try:
+        with open(ALLOCATIONFILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def loadStudentSubjects():
+    try:
+        with open(STUDENTSUBJECTSFILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
 def loadExamMap():
     try:
         with open(EXAMFILE, "r") as f:
             raw = json.load(f)
-    except:
+    except Exception:
         raw = {}
-    if isinstance(raw, dict) and isinstance(raw.get("exam_schedule"), list):
+    if isinstance(raw, dict) and "exam_schedule" in raw:
         items = raw["exam_schedule"]
     elif isinstance(raw, list):
         items = raw
@@ -32,6 +65,8 @@ def loadExamMap():
         items = []
     examMap = {}
     for it in items:
+        if not isinstance(it, dict):
+            continue
         code = (it.get("subject_code") or it.get("code") or "").upper()
         if not code:
             continue
@@ -65,8 +100,8 @@ def setExamDatesAdmin():
     if not sel:
         return
     try:
-        indexes = [int(x)-1 for x in sel.split(",") if x.strip().isdigit()]
-    except:
+        indexes = [int(x.strip()) - 1 for x in sel.split(",") if x.strip().isdigit()]
+    except Exception:
         print("Invalid input.")
         return
     examMap = loadExamMap()
@@ -78,7 +113,7 @@ def setExamDatesAdmin():
             dateStr = input(f"Enter exam date for {name} ({code}) [DD/MM/YYYY]: ").strip()
             try:
                 datetime.strptime(dateStr, "%d/%m/%Y")
-            except:
+            except Exception:
                 print(f"Skipped {code}: invalid date format.")
                 continue
             examMap[code] = {"subjectName": name, "examDate": dateStr}
@@ -91,38 +126,36 @@ def getExamDate(subjectCode):
     examMap = loadExamMap()
     return examMap.get(subjectCode.upper(), {}).get("examDate", "Not set")
 
+def getSubjectCode(subject_name):
+    return SUBJECT_NAME_TO_CODE.get(subject_name, subject_name.upper().replace(" ", "_"))
+
 def loadSectionSubjects(sectionName):
     sectionName = (sectionName or "").strip().upper()
+    subject_allocation = loadSubjectAllocation()
+    if subject_allocation and sectionName in subject_allocation:
+        subjects = subject_allocation[sectionName]
+        if subjects:
+            result = []
+            for subject_name in subjects:
+                result.append({
+                    "name": subject_name,
+                    "code": getSubjectCode(subject_name)
+                })
+            return result, True
+    student_subjects = loadStudentSubjects()
+    if student_subjects:
+        for roll, data in student_subjects.items():
+            if isinstance(data, dict) and data.get("section") == sectionName:
+                subjects = data.get("subjects", [])
+                if subjects:
+                    result = []
+                    for subject_name in subjects:
+                        result.append({
+                            "name": subject_name,
+                            "code": getSubjectCode(subject_name)
+                        })
+                    return result, True
     subjects = loadSubjects()
-    if not os.path.exists(ALLOCATIONFILE):
-        return subjects, False
-    try:
-        with open(ALLOCATIONFILE, "r") as f:
-            alloc = json.load(f)
-    except:
-        alloc = {}
-    raw = alloc.get(sectionName, [])
-    codes = []
-    result = []
-    if isinstance(raw, list):
-        for item in raw:
-            if isinstance(item, dict):
-                code = (item.get("code") or item.get("subject_code") or "").upper()
-                name = item.get("name") or item.get("subject_name") or ""
-                if code:
-                    codes.append(code)
-                    result.append({"name": name, "code": code})
-            elif isinstance(item, str):
-                code = item.upper()
-                if code:
-                    codes.append(code)
-    if result:
-        return result, True
-    if codes:
-        for s in subjects:
-            if (s.get("code") or "").upper() in codes:
-                result.append({"name": s.get("name",""), "code": (s.get("code") or "").upper()})
-        return result, True
     return subjects, False
 
 def viewAllExamDates():
@@ -139,15 +172,20 @@ def viewAllExamDates():
         print(f" {name} ({code}) - Exam: {dateStr}")
 
 def viewSectionExamDates(sectionName):
+    if sectionName == "Not assigned":
+        print("Section not assigned.")
+        return
     subs, isAllocated = loadSectionSubjects(sectionName)
     if not subs:
         print("No subjects available for this section.")
         return
     examMap = loadExamMap()
-    title = f"Section {sectionName} Exam Dates" if sectionName else "Exam Dates"
+    title = f"Section {sectionName} Exam Dates"
     print(f"\n{title}:")
     if not isAllocated:
         print("(No section-specific allocation found; showing all subjects.)")
+    else:
+        print("(Showing section-specific subjects)")
     for s in subs:
         code = (s.get("code") or "").upper()
         name = s.get("name") or ""
@@ -155,10 +193,16 @@ def viewSectionExamDates(sectionName):
         print(f" {name} ({code}) - Exam: {dateStr}")
 
 def viewStudentExamSchedule(username):
-    import subject
-    import section
-    roll = subject.getRollNumber(username, "student")
-    sec = section.getSectionForRoll(roll)
+    try:
+        from . import subject
+    except Exception:
+        import subject
+    try:
+        from . import section
+    except Exception:
+        import section
+    roll = subject.get_roll_number(username, "student")
+    sec = section.get_section_for_roll(roll)
     if sec == "Not assigned":
         print("Section not assigned.")
         return

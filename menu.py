@@ -1,7 +1,29 @@
-import exam_date
-import attendance
-import subject
-import section
+try:
+    from . import exam_date
+except Exception:
+    import exam_date
+try:
+    from . import attendance
+except Exception:
+    import attendance
+try:
+    from . import subject
+except Exception:
+    import subject
+try:
+    from . import section
+except Exception:
+    import section
+try:
+    from . import topics
+except Exception:
+    import topics
+try:
+    from . import assignments
+except Exception:
+    import assignments
+ 
+
 
 def viewAttendance():
     attendance.view_attendance()
@@ -14,22 +36,24 @@ def updateAttendance(name, sec, subjectcode):
 
 def viewStudentInfo():
     studentname = input("Enter student username: ").strip()
-    roll = subject.getRollNumber(studentname, "student")
-    secmap = section.loadJson(section.sectionsFile, {})
+    roll = subject.get_roll_number(studentname, "student")
+    secmap = section.load_json(section.sections_file, {})
     sec = secmap.get(roll, "Not assigned")
     print(f"\n--- Info for {studentname} ---")
     print(f"University Roll Number: {roll}")
     print(f"Section: {sec}")
-    exam_date.viewSectionExamDates(sec)
+    if sec != "Not assigned":
+        exam_date.viewSectionExamDates(sec)
 
 def studentDashboard(studentname):
     print(f"\n--- Dashboard for {studentname} ---")
-    roll = subject.getRollNumber(studentname, "student")
+    roll = subject.get_roll_number(studentname, "student")
     print(f"University Roll Number: {roll}")
-    secmap = section.loadJson(section.sectionsFile, {})
+    secmap = section.load_json(section.sections_file, {})
     sec = secmap.get(roll, "Not assigned")
     print(f"Section: {sec}")
-    exam_date.viewSectionExamDates(sec)
+    if sec != "Not assigned":
+        exam_date.viewSectionExamDates(sec)
 
 def adminMenu():
     while True:
@@ -48,23 +72,23 @@ def adminMenu():
         print("12. Back")
         choice = input("Enter choice: ").strip()
         if choice == "1":
-            subject.addSubject()
+            subject.add_subject()
         elif choice == "2":
-            subject.listSubjects()
+            subject.list_subjects()
         elif choice == "3":
-            section.createSection()
+            section.create_section()
         elif choice == "4":
-            section.listSections()
+            section.list_sections()
         elif choice == "5":
-            section.assignSectionFromList()
+            section.assign_section_from_list()
         elif choice == "6":
-            section.assignSectionToTeacher()
+            section.assign_section_to_teacher()
         elif choice == "7":
             exam_date.setExamDatesAdmin()
         elif choice == "8":
             exam_date.viewAllExamDates()
         elif choice == "9":
-            section.viewSectionAssignments()
+            section.view_section_assignments()
         elif choice == "10":
             viewStudentInfo()
         elif choice == "11":
@@ -80,54 +104,120 @@ def studentMenu(studentname):
         print("\n--- Student Menu ---")
         print("1. View dashboard")
         print("2. View my exam schedule")
-        print("3. View attendance")
-        print("4. Logout")
+        print("3. View my attendance")
+        print("4. View attendance summary")
+        print("5. View topics covered in my section")
+        print("6. Submit assignment PDF")
+        print("7. Logout")
         choice = input("Enter choice: ").strip()
+
         if choice == "1":
             studentDashboard(studentname)
+
         elif choice == "2":
-            roll = subject.getRollNumber(studentname, "student")
-            secmap = section.loadJson(section.sectionsFile, {})
+            roll = subject.get_roll_number(studentname, "student")
+            secmap = section.load_json(section.sections_file, {})
             sec = secmap.get(roll, "Not assigned")
             if sec == "Not assigned":
                 print("Section not assigned.")
             else:
                 exam_date.viewStudentExamSchedule(studentname)
+
         elif choice == "3":
-            viewAttendance()
+            roll = subject.get_roll_number(studentname, "student")
+            attendance.view_attendance(student_roll=roll)
+
         elif choice == "4":
+            roll = subject.get_roll_number(studentname, "student")
+            attendance.get_student_attendance_summary(roll)
+
+        elif choice == "5":
+            roll = subject.get_roll_number(studentname, "student")
+            topics.view_topics_for_student(roll)
+
+        elif choice == "6":
+            roll = subject.get_roll_number(studentname, "student")
+            pdf_path = input("Enter path to your assignment PDF: ").strip()
+            assignments.submit_assignment(roll, pdf_path) # type: ignore
+
+        elif choice == "7":
             break
+
         else:
             print("Invalid choice.")
+
 
 def teacherMenu(teachername):
     while True:
         print("\n--- Teacher Menu ---")
         print("1. View my sections")
-        print("2. Mark attendance")
-        print("3. Update attendance")
+        print("2. Mark present")
+        print("3. Update attendance/ mark absent")
         print("4. View attendance chart")
-        print("5. Exit")
+        print("5. Add topic covered")
+        print("6. View topics covered")
+        print("7. View submitted assignments")
+        print("8. Exit")
         choice = input("Enter choice: ").strip()
+
         if choice == "1":
-            section.viewMySections(teachername)
-            input("\nPress Enter to return to menu...")
+            secs = section.view_my_sections(teachername)
+            if not secs:
+                print("No sections assigned to this teacher.")
+            else:
+                print(f"Sections assigned to {teachername}: {', '.join(secs)}")
+
         elif choice == "2":
-            name = input("Enter student name: ").strip()
-            sec = input("Enter section: ").strip().upper()
+            roll = input("Enter student roll number: ").strip()
             code = input("Enter subject code: ").strip().upper()
-            markAttendance(name, sec, code)
+            attendance.mark_attendance(teachername, roll, code)
+
         elif choice == "3":
-            name = input("Enter student name: ").strip()
-            sec = input("Enter section: ").strip().upper()
+            roll = input("Enter student roll number: ").strip()
             code = input("Enter subject code: ").strip().upper()
-            updateAttendance(name, sec, code)
+            attendance.update_attendance(teachername, roll, code)
+
         elif choice == "4":
-            viewAttendance()
+            attendance.view_attendance(teachername=teachername)
+
         elif choice == "5":
+            topics.add_topic(teachername)
+
+        elif choice == "6":
+            # teacher can see topics of their assigned section(s)
+            teacher_sections = topics.load_teacher_sections()
+            teacher_name_lower = teachername.lower()
+
+            assigned_sections = []
+            for tname, sections in teacher_sections.items():
+                if tname.lower() == teacher_name_lower:
+                    assigned_sections.extend(sections)
+
+            if not assigned_sections:
+                print("No sections assigned to you.")
+                continue
+
+            topics_data = topics.load_json(topics.TOPICS_FILE)
+            found_any = False
+            for sec in assigned_sections:
+                if sec in topics_data and topics_data[sec]:
+                    print(f"\nTopics covered for section {sec}:")
+                    for i, t in enumerate(topics_data[sec], 1):
+                        print(f"{i}. {t['topic']} (by {t['teacher']} on {t['date']})")
+                    found_any = True
+
+            if not found_any:
+                print("No topics recorded yet for your sections.")
+
+        elif choice == "7":
+            assignments.view_assignments(teachername) # type: ignore
+
+        elif choice == "8":
             break
+
         else:
             print("Invalid choice.")
+
 
 def openMenu(role, username):
     r = role.strip().lower()
